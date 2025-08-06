@@ -76,8 +76,139 @@ function playCollisionSound() {
     playSound(200, 0.4, 'triangle');
 }
 
+// Segment types with effects and triggers
+const SEGMENT_TYPES = {
+    HEAD: 'H',
+    GUN: 'G',
+    SHIELD: 'S',
+    BODY: 'B'
+};
+
+// Trigger conditions
+const TRIGGERS = {
+    NONE: 'none',
+    SHORT_PRESS: 'short_press',
+    LONG_PRESS: 'long_press'
+};
+
+// Segment definitions with effects
+const SEGMENT_DEFINITIONS = {
+    [SEGMENT_TYPES.HEAD]: {
+        name: 'Head',
+        trigger: TRIGGERS.NONE,
+        effect: null,
+        description: 'Always first, cannot be moved or removed'
+    },
+    [SEGMENT_TYPES.GUN]: {
+        name: 'Gun',
+        trigger: TRIGGERS.SHORT_PRESS,
+        effect: 'launch_projectile',
+        description: 'Launch a projectile forward from the head'
+    },
+    [SEGMENT_TYPES.SHIELD]: {
+        name: 'Shield',
+        trigger: TRIGGERS.LONG_PRESS,
+        effect: 'invincibility',
+        description: 'Render the entire snake invincible for 1 second'
+    },
+    [SEGMENT_TYPES.BODY]: {
+        name: 'Body',
+        trigger: TRIGGERS.NONE,
+        effect: 'fat_appearance',
+        description: 'Makes you look fat'
+    }
+};
+
+// Effect implementations
+const SEGMENT_EFFECTS = {
+    launch_projectile: () => {
+        if (!gameRunning) return;
+        const head = snake[0];
+        projectiles.push({
+            x: head.x,
+            y: head.y,
+            dx: direction.x,
+            dy: direction.y
+        });
+        gunFlashEnd = Date.now() + 200;
+        playShootSound();
+    },
+    
+    invincibility: () => {
+        if (!gameRunning || shieldActive || Date.now() < shieldCooldownEnd) return;
+        shieldActive = true;
+        shieldEndTime = Date.now() + SHIELD_DURATION;
+        playSound(600, 0.3, 'sine');
+    },
+    
+    fat_appearance: () => {
+        // This effect is passive - handled in rendering
+        return 'passive';
+    }
+};
+
+// Display segment information in hover area
+function displaySegmentInfo(segmentType) {
+    const infoDisplay = document.getElementById('segmentInfoDisplay');
+    const definition = SEGMENT_DEFINITIONS[segmentType];
+    
+    if (!definition) {
+        clearSegmentInfo();
+        return;
+    }
+    
+    infoDisplay.classList.remove('empty');
+    
+    let triggerText = 'None';
+    switch(definition.trigger) {
+        case TRIGGERS.SHORT_PRESS:
+            triggerText = 'Spacebar short press';
+            break;
+        case TRIGGERS.LONG_PRESS:
+            triggerText = 'Spacebar long press (0.5s)';
+            break;
+        case TRIGGERS.NONE:
+            triggerText = 'No trigger (passive)';
+            break;
+    }
+    
+    let effectText = 'None';
+    if (definition.effect) {
+        switch(definition.effect) {
+            case 'launch_projectile':
+                effectText = 'Launch projectile forward from head';
+                break;
+            case 'invincibility':
+                effectText = 'Make snake invincible for 1 second';
+                break;
+            case 'fat_appearance':
+                effectText = 'Visual effect: larger segment size';
+                break;
+            default:
+                effectText = definition.effect;
+        }
+    }
+    
+    infoDisplay.innerHTML = `
+        <div class="segment-info-content">
+            <div class="segment-info-title">${definition.name} (${segmentType})</div>
+            <div class="segment-info-trigger">Trigger: ${triggerText}</div>
+            <div class="segment-info-effect">Effect: ${effectText}</div>
+            <div class="segment-info-description">${definition.description}</div>
+        </div>
+    `;
+}
+
+// Clear segment information display
+function clearSegmentInfo() {
+    const infoDisplay = document.getElementById('segmentInfoDisplay');
+    infoDisplay.classList.add('empty');
+    infoDisplay.innerHTML = '<div class="segment-info-placeholder">Hover over a segment to see detailed information</div>';
+}
+
 // Game state
 let snake = [];
+let snakeSegments = []; // Array to store segment types
 let direction = { x: 1, y: 0 };
 let nextDirection = { x: 1, y: 0 };
 let foods = []; // Multiple food items
@@ -88,6 +219,9 @@ let collisionMarkers = [];
 let score = 0;
 let highScore = localStorage.getItem('openWorldSnakeHighScore') || 0;
 let gameRunning = false;
+let gamePaused = false;
+let inventoryOpen = false;
+let selectedSegmentType = SEGMENT_TYPES.BODY;
 let gameLoop = null;
 let lastEnemySpawn = 0;
 let nextSpawnLocation = null;
@@ -99,6 +233,13 @@ let spaceKeyDown = false;
 let spaceKeyHoldStart = 0;
 let gunFlashEnd = 0;
 let shieldActivationTimer = null;
+
+// Drag and drop state
+let draggedElement = null;
+let draggedIndex = null;
+let draggedFromDiscard = false;
+let discardedSegments = [];
+let collectableSegments = []; // Segments floating in game world
 
 // Camera state
 let camera = {
@@ -113,12 +254,20 @@ function init() {
         { x: -1, y: 0 },
         { x: -2, y: 0 }
     ];
+    // Initialize segment types: Head, Gun, Shield as starting configuration
+    snakeSegments = [
+        SEGMENT_TYPES.HEAD,
+        SEGMENT_TYPES.GUN,
+        SEGMENT_TYPES.SHIELD
+    ];
     direction = { x: 1, y: 0 };
     nextDirection = { x: 1, y: 0 };
     projectiles = [];
     enemySnakes = [];
     explosions = [];
     collisionMarkers = [];
+    collectableSegments = [];
+    discardedSegments = [];
     foods = [];
     score = 0;
     lastEnemySpawn = Date.now();
@@ -128,12 +277,15 @@ function init() {
     spaceKeyDown = false;
     spaceKeyHoldStart = 0;
     gunFlashEnd = 0;
+    gamePaused = false;
+    inventoryOpen = false;
     if (shieldActivationTimer) {
         clearTimeout(shieldActivationTimer);
         shieldActivationTimer = null;
     }
     updateScore();
     highScoreElement.textContent = highScore;
+    updateAbilityAvailability();
     
     // Generate initial food items
     for (let i = 0; i < 10; i++) {
@@ -206,20 +358,30 @@ function selectNextSpawnLocation() {
     };
 }
 
-// Find nearest food for enemy
+// Find nearest food or collectable segment for enemy
 function findNearestFood(enemyHead) {
-    let nearestFood = null;
+    let nearestItem = null;
     let minDistance = Infinity;
     
+    // Check regular food
     foods.forEach(food => {
         const distance = Math.abs(food.x - enemyHead.x) + Math.abs(food.y - enemyHead.y);
         if (distance < minDistance) {
             minDistance = distance;
-            nearestFood = food;
+            nearestItem = { x: food.x, y: food.y, type: 'food' };
         }
     });
     
-    return nearestFood;
+    // Check collectable segments
+    collectableSegments.forEach(segment => {
+        const distance = Math.abs(Math.floor(segment.x) - enemyHead.x) + Math.abs(Math.floor(segment.y) - enemyHead.y);
+        if (distance < minDistance) {
+            minDistance = distance;
+            nearestItem = { x: Math.floor(segment.x), y: Math.floor(segment.y), type: 'segment' };
+        }
+    });
+    
+    return nearestItem;
 }
 
 // Move enemy snake
@@ -294,11 +456,22 @@ function moveEnemySnake(enemy) {
     const foodIndex = foods.findIndex(food => food.x === newHead.x && food.y === newHead.y);
     if (foodIndex !== -1) {
         foods.splice(foodIndex, 1);
-        generateFood(); // Spawn new food
+        generateFood();
         playFoodSound();
         enemy.targetFood = null;
     } else {
-        enemy.segments.pop();
+        // Check collectable segment collision
+        const segmentIndex = collectableSegments.findIndex(seg => 
+            Math.floor(seg.x) === newHead.x && Math.floor(seg.y) === newHead.y
+        );
+        
+        if (segmentIndex !== -1) {
+            collectableSegments.splice(segmentIndex, 1);
+            playFoodSound();
+            enemy.targetFood = null;
+        } else {
+            enemy.segments.pop();
+        }
     }
     
     return true;
@@ -323,9 +496,58 @@ function createCollisionMarker(x, y) {
     });
 }
 
+// Check if snake has specific segment type
+function hasSegmentType(type) {
+    return snakeSegments.includes(type);
+}
+
+// Get all segments that respond to a specific trigger
+function getSegmentsByTrigger(trigger) {
+    return snakeSegments.filter(segmentType => 
+        SEGMENT_DEFINITIONS[segmentType].trigger === trigger
+    );
+}
+
+// Execute effects for segments with specific trigger
+function triggerSegmentEffects(trigger) {
+    const triggeredSegments = getSegmentsByTrigger(trigger);
+    triggeredSegments.forEach(segmentType => {
+        const definition = SEGMENT_DEFINITIONS[segmentType];
+        if (definition.effect && SEGMENT_EFFECTS[definition.effect]) {
+            SEGMENT_EFFECTS[definition.effect]();
+        }
+    });
+}
+
+// Count segments with fat effect for rendering
+function getFatSegmentCount() {
+    return snakeSegments.filter(segmentType => 
+        SEGMENT_DEFINITIONS[segmentType].effect === 'fat_appearance'
+    ).length;
+}
+
+// Update ability availability based on segments
+function updateAbilityAvailability() {
+    // Check for gun segments (short press trigger)
+    const hasGun = getSegmentsByTrigger(TRIGGERS.SHORT_PRESS).length > 0;
+    if (hasGun) {
+        gunText.style.display = 'inline';
+    } else {
+        gunText.style.display = 'none';
+    }
+    
+    // Check for shield segments (long press trigger)
+    const hasShield = getSegmentsByTrigger(TRIGGERS.LONG_PRESS).length > 0;
+    if (hasShield) {
+        document.querySelector('.shield-container').style.display = 'inline-block';
+    } else {
+        document.querySelector('.shield-container').style.display = 'none';
+    }
+}
+
 // Update game state
 function update() {
-    if (!gameRunning) return;
+    if (!gameRunning || gamePaused || inventoryOpen) return;
 
     direction = { ...nextDirection };
 
@@ -373,8 +595,27 @@ function update() {
         playFoodSound();
         score += 10;
         updateScore();
+        // Add a body segment when eating food
+        snakeSegments.push(SEGMENT_TYPES.BODY);
     } else {
-        snake.pop();
+        // Check collectable segment collision
+        const segmentIndex = collectableSegments.findIndex(seg => 
+            Math.floor(seg.x) === head.x && Math.floor(seg.y) === head.y
+        );
+        
+        if (segmentIndex !== -1) {
+            const collectedSegment = collectableSegments[segmentIndex];
+            collectableSegments.splice(segmentIndex, 1);
+            playFoodSound();
+            score += 5;
+            updateScore();
+            // Add the specific segment type that was collected
+            snakeSegments.push(collectedSegment.type);
+            updateAbilityAvailability();
+        } else {
+            snake.pop();
+            // Don't pop segments when snake isn't growing
+        }
     }
 
     // Update camera to follow snake
@@ -464,6 +705,9 @@ function update() {
         marker.lifetime--;
         return marker.lifetime > 0;
     });
+    
+    // Update collectable segments (no movement needed, they're stationary)
+    // collectableSegments persist until picked up
     
     // Update shield status
     const now = Date.now();
@@ -575,44 +819,87 @@ function render() {
     snake.forEach((segment, index) => {
         const x = segment.x * CELL_SIZE - camera.x;
         const y = segment.y * CELL_SIZE - camera.y;
+        const segmentType = snakeSegments[index] || SEGMENT_TYPES.BODY;
         
-        if (shieldActive) {
-            if (index === 0) {
-                const gradient = ctx.createRadialGradient(
-                    x + CELL_SIZE / 2,
-                    y + CELL_SIZE / 2,
-                    0,
-                    x + CELL_SIZE / 2,
-                    y + CELL_SIZE / 2,
-                    CELL_SIZE / 2
-                );
-                gradient.addColorStop(0, '#64b5f6');
-                gradient.addColorStop(1, '#1976d2');
-                ctx.fillStyle = gradient;
-            } else {
-                ctx.fillStyle = '#2196f3';
-            }
+        // Set color based on segment type
+        if (shieldActive && segmentType === SEGMENT_TYPES.SHIELD) {
+            // Active shield segment
+            const gradient = ctx.createRadialGradient(
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                0,
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                CELL_SIZE / 2
+            );
+            gradient.addColorStop(0, '#64b5f6');
+            gradient.addColorStop(1, '#1976d2');
+            ctx.fillStyle = gradient;
+        } else if (segmentType === SEGMENT_TYPES.HEAD) {
+            // Head segment
+            const gradient = ctx.createRadialGradient(
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                0,
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                CELL_SIZE / 2
+            );
+            gradient.addColorStop(0, '#ffeb3b');
+            gradient.addColorStop(1, '#f9a825');
+            ctx.fillStyle = gradient;
+        } else if (segmentType === SEGMENT_TYPES.GUN) {
+            // Gun segment
+            const gradient = ctx.createRadialGradient(
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                0,
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                CELL_SIZE / 2
+            );
+            gradient.addColorStop(0, '#ff6b6b');
+            gradient.addColorStop(1, '#ff5252');
+            ctx.fillStyle = gradient;
+        } else if (segmentType === SEGMENT_TYPES.SHIELD) {
+            // Shield segment (inactive)
+            const gradient = ctx.createRadialGradient(
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                0,
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                CELL_SIZE / 2
+            );
+            gradient.addColorStop(0, '#4dabf7');
+            gradient.addColorStop(1, '#2196f3');
+            ctx.fillStyle = gradient;
         } else {
-            if (index === 0) {
-                const gradient = ctx.createRadialGradient(
-                    x + CELL_SIZE / 2,
-                    y + CELL_SIZE / 2,
-                    0,
-                    x + CELL_SIZE / 2,
-                    y + CELL_SIZE / 2,
-                    CELL_SIZE / 2
-                );
-                gradient.addColorStop(0, '#ffeb3b');
-                gradient.addColorStop(1, '#f9a825');
-                ctx.fillStyle = gradient;
-            } else {
-                ctx.fillStyle = '#fdd835';
-            }
+            // Body segment
+            ctx.fillStyle = '#66bb6a';
         }
-        ctx.fillRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+        
+        // Calculate size based on segment effect
+        let segmentSize = CELL_SIZE - 4;
+        let offset = 2;
+        
+        // Make body segments look "fat"
+        if (segmentType === SEGMENT_TYPES.BODY) {
+            segmentSize = CELL_SIZE - 1; // Bigger size
+            offset = 0.5; // Smaller offset
+        }
+        
+        ctx.fillRect(x + offset, y + offset, segmentSize, segmentSize);
+        
+        // Draw segment type character
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(segmentType, x + CELL_SIZE / 2, y + CELL_SIZE / 2);
 
-        // Draw gun on head
-        if (index === 0) {
+        // Draw gun on head if snake has gun segments
+        if (segmentType === SEGMENT_TYPES.HEAD && getSegmentsByTrigger(TRIGGERS.SHORT_PRESS).length > 0) {
             ctx.fillStyle = '#f38181';
             const gunX = x + CELL_SIZE / 2 + direction.x * CELL_SIZE / 3;
             const gunY = y + CELL_SIZE / 2 + direction.y * CELL_SIZE / 3;
@@ -686,6 +973,63 @@ function render() {
             ctx.moveTo(x + CELL_SIZE / 2 + size, y + CELL_SIZE / 2 - size);
             ctx.lineTo(x + CELL_SIZE / 2 - size, y + CELL_SIZE / 2 + size);
             ctx.stroke();
+        }
+    });
+    
+    // Draw collectable segments as circles
+    collectableSegments.forEach(segment => {
+        const x = segment.x * CELL_SIZE - camera.x;
+        const y = segment.y * CELL_SIZE - camera.y;
+        
+        // Only draw if on screen
+        if (x > -CELL_SIZE && x < canvas.width + CELL_SIZE && 
+            y > -CELL_SIZE && y < canvas.height + CELL_SIZE) {
+            
+            // Create gradient for segment type
+            const gradient = ctx.createRadialGradient(
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                0,
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                CELL_SIZE / 2
+            );
+            
+            switch(segment.type) {
+                case SEGMENT_TYPES.GUN:
+                    gradient.addColorStop(0, '#ff6b6b');
+                    gradient.addColorStop(1, '#d32f2f');
+                    break;
+                case SEGMENT_TYPES.SHIELD:
+                    gradient.addColorStop(0, '#4dabf7');
+                    gradient.addColorStop(1, '#1565c0');
+                    break;
+                case SEGMENT_TYPES.BODY:
+                    gradient.addColorStop(0, '#66bb6a');
+                    gradient.addColorStop(1, '#2e7d32');
+                    break;
+                default:
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(1, '#cccccc');
+            }
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(
+                x + CELL_SIZE / 2,
+                y + CELL_SIZE / 2,
+                CELL_SIZE / 2 - 3,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+            
+            // Draw segment type character
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(segment.type, x + CELL_SIZE / 2, y + CELL_SIZE / 2);
         }
     });
     
@@ -777,27 +1121,14 @@ function updateScore() {
     scoreElement.textContent = score;
 }
 
-// Shoot projectile
+// Legacy functions - now handled by segment effect system
+// (kept for compatibility, but redirect to new system)
 function shoot() {
-    if (!gameRunning) return;
-    
-    const head = snake[0];
-    projectiles.push({
-        x: head.x,
-        y: head.y,
-        dx: direction.x,
-        dy: direction.y
-    });
-    gunFlashEnd = Date.now() + 200;
+    triggerSegmentEffects(TRIGGERS.SHORT_PRESS);
 }
 
-// Activate shield
 function activateShield() {
-    if (!gameRunning || shieldActive || Date.now() < shieldCooldownEnd) return;
-    
-    shieldActive = true;
-    shieldEndTime = Date.now() + SHIELD_DURATION;
-    playSound(600, 0.3, 'sine');
+    triggerSegmentEffects(TRIGGERS.LONG_PRESS);
 }
 
 // Update ability visual indicators
@@ -833,9 +1164,363 @@ function updateAbilityVisuals() {
     }
 }
 
+// Inventory functions
+function openInventory() {
+    if (!gameRunning) return;
+    
+    // Ensure we have segments initialized
+    if (!snakeSegments || snakeSegments.length === 0) {
+        snakeSegments = [
+            SEGMENT_TYPES.HEAD,
+            SEGMENT_TYPES.GUN,
+            SEGMENT_TYPES.SHIELD
+        ];
+    }
+    
+    inventoryOpen = true;
+    gamePaused = true;
+    discardedSegments = []; // Clear discarded segments when opening
+    document.getElementById('inventoryOverlay').classList.add('active');
+    updateInventoryDisplay();
+}
+
+function closeInventory() {
+    // Eject discarded segments behind the snake as collectible items
+    if (discardedSegments.length > 0 && snake.length > 0) {
+        const tail = snake[snake.length - 1];
+        const beforeTail = snake.length > 1 ? snake[snake.length - 2] : snake[0];
+        const ejectDir = {
+            x: tail.x - beforeTail.x || -direction.x,
+            y: tail.y - beforeTail.y || -direction.y
+        };
+        
+        discardedSegments.forEach((segment, index) => {
+            const ejectPos = {
+                x: tail.x + ejectDir.x * (index + 2),
+                y: tail.y + ejectDir.y * (index + 2)
+            };
+            
+            collectableSegments.push({
+                x: ejectPos.x,
+                y: ejectPos.y,
+                type: segment
+            });
+        });
+        
+        discardedSegments = [];
+    }
+    
+    inventoryOpen = false;
+    gamePaused = false;
+    document.getElementById('inventoryOverlay').classList.remove('active');
+}
+
+function updateInventoryDisplay() {
+    const container = document.getElementById('snakeSegments');
+    container.innerHTML = '';
+    
+    // Display segments with head on left
+    if (!snakeSegments || snakeSegments.length === 0) {
+        console.warn('No snake segments found!');
+        return;
+    }
+    
+    // Create slots in reverse order (head on left)
+    const totalSlots = snakeSegments.length + 1; // Only one extra empty slot
+    
+    for (let i = 0; i < totalSlots; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'segment-slot';
+        const actualIndex = i; // Keep original index for data
+        slot.dataset.index = actualIndex;
+        
+        if (actualIndex < snakeSegments.length) {
+            const segment = snakeSegments[actualIndex];
+            // Creating segment slot
+            
+            switch(segment) {
+                case SEGMENT_TYPES.HEAD:
+                    slot.classList.add('head', 'locked');
+                    break;
+                case SEGMENT_TYPES.GUN:
+                    slot.classList.add('gun');
+                    break;
+                case SEGMENT_TYPES.SHIELD:
+                    slot.classList.add('shield');
+                    break;
+                case SEGMENT_TYPES.BODY:
+                    slot.classList.add('body');
+                    break;
+            }
+            
+            slot.textContent = segment;
+            
+            // Make draggable (except head)
+            if (actualIndex > 0) {
+                slot.draggable = true;
+                slot.addEventListener('dragstart', handleDragStart);
+                slot.addEventListener('dragend', handleDragEnd);
+            }
+            
+            // Add hover events for info display
+            slot.addEventListener('mouseenter', () => displaySegmentInfo(segment));
+            slot.addEventListener('mouseleave', clearSegmentInfo);
+        } else {
+            // Empty slot
+            // Creating empty slot
+            slot.classList.add('empty');
+            slot.textContent = '+';
+            
+            // Add hover event for empty slot
+            slot.addEventListener('mouseenter', () => {
+                const infoDisplay = document.getElementById('segmentInfoDisplay');
+                infoDisplay.classList.remove('empty');
+                infoDisplay.innerHTML = `
+                    <div class="segment-info-content">
+                        <div class="segment-info-title">Empty Slot</div>
+                        <div class="segment-info-description">Drop a segment here or use the "Add Segment" button to add a new segment of the selected type.</div>
+                    </div>
+                `;
+            });
+            slot.addEventListener('mouseleave', clearSegmentInfo);
+        }
+        
+        // Drop zone events for all slots
+        slot.addEventListener('dragover', handleDragOver);
+        slot.addEventListener('drop', handleDrop);
+        slot.addEventListener('dragenter', handleDragEnter);
+        slot.addEventListener('dragleave', handleDragLeave);
+        
+        // Insert at the beginning to reverse the order (head on left)
+        if (actualIndex < snakeSegments.length) {
+            container.insertBefore(slot, container.firstChild);
+        } else {
+            // Empty slot goes at the end (right side)
+            container.appendChild(slot);
+        }
+    }
+    
+    // Update discard area
+    const discardContent = document.getElementById('discardContent');
+    discardContent.innerHTML = '';
+    
+    if (discardedSegments.length === 0) {
+        discardContent.innerHTML = '<p style="color: #666; text-align: center;">Drag segments here to remove them</p>';
+    } else {
+        discardedSegments.forEach((segment, index) => {
+            const slot = document.createElement('div');
+            slot.className = 'segment-slot';
+            slot.dataset.discardIndex = index;
+            
+            switch(segment) {
+                case SEGMENT_TYPES.GUN:
+                    slot.classList.add('gun');
+                    break;
+                case SEGMENT_TYPES.SHIELD:
+                    slot.classList.add('shield');
+                    break;
+                case SEGMENT_TYPES.BODY:
+                    slot.classList.add('body');
+                    break;
+            }
+            
+            slot.textContent = segment;
+            slot.draggable = true;
+            slot.addEventListener('dragstart', handleDiscardDragStart);
+            slot.addEventListener('dragend', handleDragEnd);
+            
+            // Add hover events for discarded segments
+            slot.addEventListener('mouseenter', () => displaySegmentInfo(segment));
+            slot.addEventListener('mouseleave', clearSegmentInfo);
+            
+            discardContent.appendChild(slot);
+        });
+    }
+    
+    // Setup discard area drop zone
+    const discardArea = document.getElementById('discardArea');
+    discardArea.addEventListener('dragover', handleDiscardDragOver);
+    discardArea.addEventListener('drop', handleDiscardDrop);
+    discardArea.addEventListener('dragenter', handleDiscardDragEnter);
+    discardArea.addEventListener('dragleave', handleDiscardDragLeave);
+}
+
+// Drag and drop handlers
+function handleDragStart(e) {
+    draggedElement = e.target;
+    draggedIndex = parseInt(e.target.dataset.index);
+    draggedFromDiscard = false;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDiscardDragStart(e) {
+    draggedElement = e.target;
+    draggedIndex = parseInt(e.target.dataset.discardIndex);
+    draggedFromDiscard = true;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedElement = null;
+    draggedIndex = null;
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    if (e.target.classList.contains('segment-slot') && !e.target.classList.contains('locked')) {
+        e.target.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    if (e.target.classList.contains('segment-slot')) {
+        e.target.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    e.target.classList.remove('drag-over');
+    
+    if (draggedElement && e.target !== draggedElement && e.target.classList.contains('segment-slot')) {
+        const targetIndex = parseInt(e.target.dataset.index);
+        
+        if (targetIndex === 0) return; // Can't drop on head slot
+        
+        if (draggedFromDiscard) {
+            // Moving from discard back to snake
+            const segmentType = discardedSegments[draggedIndex];
+            if (targetIndex <= snakeSegments.length) {
+                snakeSegments.splice(targetIndex, 0, segmentType);
+                // Add corresponding snake position
+                const insertPos = snake[Math.min(targetIndex, snake.length - 1)];
+                snake.splice(targetIndex, 0, { x: insertPos.x, y: insertPos.y });
+                // Remove from discarded segments
+                discardedSegments.splice(draggedIndex, 1);
+            }
+        } else {
+            // Moving within snake configuration
+            if (targetIndex < snakeSegments.length || targetIndex === snakeSegments.length) {
+                // Move segment to new position
+                const movedSegment = snakeSegments.splice(draggedIndex, 1)[0];
+                const movedSnake = snake.splice(draggedIndex, 1)[0];
+                
+                const insertIndex = targetIndex > draggedIndex ? targetIndex - 1 : targetIndex;
+                snakeSegments.splice(insertIndex, 0, movedSegment);
+                snake.splice(insertIndex, 0, movedSnake);
+            }
+        }
+        
+        updateInventoryDisplay();
+        updateAbilityAvailability();
+    }
+    
+    return false;
+}
+
+// Discard area handlers
+function handleDiscardDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDiscardDragEnter(e) {
+    document.getElementById('discardArea').classList.add('drag-over');
+}
+
+function handleDiscardDragLeave(e) {
+    if (e.target.id === 'discardArea') {
+        e.target.classList.remove('drag-over');
+    }
+}
+
+function handleDiscardDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    document.getElementById('discardArea').classList.remove('drag-over');
+    
+    if (draggedElement && draggedIndex !== null) {
+        if (draggedFromDiscard) {
+            // Already in discard, do nothing
+        } else if (draggedIndex > 0) {
+            // Moving from snake to discard
+            const segment = snakeSegments[draggedIndex];
+            discardedSegments.push(segment);
+            snakeSegments.splice(draggedIndex, 1);
+            snake.splice(draggedIndex, 1);
+            
+            updateInventoryDisplay();
+            updateAbilityAvailability();
+        }
+    }
+    
+    return false;
+}
+
+function addSegment() {
+    // Find first empty slot or add at end
+    if (snakeSegments.length < 10) {
+        snakeSegments.push(selectedSegmentType);
+        const tail = snake[snake.length - 1];
+        snake.push({ x: tail.x, y: tail.y });
+        updateInventoryDisplay();
+        updateAbilityAvailability();
+    }
+}
+
+function selectSegmentType(type) {
+    selectedSegmentType = type;
+    document.querySelectorAll('.segment-type-btn').forEach(btn => {
+        btn.classList.remove('selected');
+        if (btn.getAttribute('data-type') === type) {
+            btn.classList.add('selected');
+        }
+    });
+}
+
+// Make functions available globally for HTML onclick
+window.closeInventory = closeInventory;
+window.addSegment = addSegment;
+window.selectSegmentType = selectSegmentType;
+
 // Handle keyboard input
 document.addEventListener('keydown', (e) => {
-    if (!gameRunning) return;
+    // Handle inventory toggle - check this first before game state
+    if ((e.key === 'i' || e.key === 'I') && gameRunning) {
+        e.preventDefault();
+        if (inventoryOpen) {
+            closeInventory();
+        } else {
+            openInventory();
+        }
+        return;
+    }
+    
+    // Handle ESC to close inventory
+    if (e.key === 'Escape' && inventoryOpen) {
+        closeInventory();
+        return;
+    }
+    
+    if (!gameRunning || gamePaused || inventoryOpen) return;
 
     switch(e.key) {
         case 'ArrowUp':
@@ -877,7 +1562,8 @@ document.addEventListener('keydown', (e) => {
                 if (!shieldActive && Date.now() >= shieldCooldownEnd) {
                     shieldActivationTimer = setTimeout(() => {
                         if (spaceKeyDown) {
-                            activateShield();
+                            // Trigger long press effects
+                            triggerSegmentEffects(TRIGGERS.LONG_PRESS);
                         }
                     }, SHIELD_ACTIVATION_TIME);
                 }
@@ -898,8 +1584,8 @@ document.addEventListener('keyup', (e) => {
             
             const holdDuration = Date.now() - spaceKeyHoldStart;
             if (holdDuration < SHIELD_ACTIVATION_TIME && !shieldActive) {
-                shoot();
-                playShootSound();
+                // Trigger short press effects
+                triggerSegmentEffects(TRIGGERS.SHORT_PRESS);
             }
             spaceKeyDown = false;
         }

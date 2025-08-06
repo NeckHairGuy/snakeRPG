@@ -150,6 +150,319 @@
             opacity: 0.7;
             text-align: center;
         }
+        
+        /* Inventory System */
+        .inventory-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .inventory-overlay.active {
+            display: flex;
+        }
+        
+        .inventory-container {
+            background: #1a1a2e;
+            border: 2px solid #444;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .inventory-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .inventory-header h2 {
+            color: #ffeb3b;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .snake-schema {
+            background: #0a0a0f;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .snake-segments {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .segment-slot {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            background: #16213e;
+            position: relative;
+            cursor: move;
+            transition: all 0.3s;
+        }
+        
+        .segment-slot:hover:not(.locked) {
+            border-color: #ffeb3b;
+            transform: scale(1.05);
+        }
+        
+        .segment-slot.locked {
+            cursor: not-allowed;
+            opacity: 0.9;
+        }
+        
+        .segment-slot.dragging {
+            opacity: 0.5;
+            transform: scale(0.9);
+        }
+        
+        .segment-slot.drag-over {
+            border-color: #4caf50;
+            border-width: 3px;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .segment-slot.head {
+            background: linear-gradient(135deg, #ffeb3b, #f9a825);
+            color: #000;
+        }
+        
+        .segment-slot.gun {
+            background: linear-gradient(135deg, #ff6b6b, #ff5252);
+            color: #fff;
+        }
+        
+        .segment-slot.shield {
+            background: linear-gradient(135deg, #4dabf7, #2196f3);
+            color: #fff;
+        }
+        
+        .segment-slot.body {
+            background: linear-gradient(135deg, #66bb6a, #4caf50);
+            color: #fff;
+        }
+        
+        .segment-slot.empty {
+            background: #0a0a0f;
+            border-style: dashed;
+            border-color: #333;
+            color: #666;
+            cursor: default;
+        }
+        
+        .discard-window {
+            background: rgba(244, 67, 54, 0.1);
+            border: 2px dashed #f44336;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .discard-window.drag-over {
+            background: rgba(244, 67, 54, 0.3);
+            border-color: #ff5252;
+        }
+        
+        .discard-content {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .discard-label {
+            color: #f44336;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .return-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .return-btn:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+        
+        .segment-info-display {
+            background: #2a2a3e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            height: 120px;
+            overflow: hidden;
+            transition: background 0.3s, border-color 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .segment-info-display.empty {
+            background: #1a1a2e;
+            border-style: dashed;
+            border-color: #333;
+        }
+        
+        .segment-info-title {
+            color: #ffeb3b;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .segment-info-trigger {
+            color: #4dabf7;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .segment-info-effect {
+            color: #66bb6a;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        
+        .segment-info-description {
+            color: #ccc;
+            font-size: 0.85em;
+            line-height: 1.3;
+        }
+        
+        .segment-info-placeholder {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            align-self: center;
+        }
+        
+        .segment-info-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+        
+        .segment-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .segment-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .add-segment {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .add-segment:hover {
+            background: #45a049;
+        }
+        
+        .remove-segment {
+            background: #f44336;
+            color: white;
+        }
+        
+        .remove-segment:hover {
+            background: #da190b;
+        }
+        
+        .segment-types {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        .segment-type-btn {
+            padding: 8px 16px;
+            border: 2px solid #444;
+            background: #1a1a2e;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .segment-type-btn:hover {
+            border-color: #ffeb3b;
+        }
+        
+        .segment-type-btn.selected {
+            border-color: #ffeb3b;
+            background: #2a2a3e;
+        }
+        
+        .inventory-info {
+            text-align: center;
+            color: #999;
+            margin: 10px 0;
+        }
+        
+        .close-inventory {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        
+        .close-inventory:hover {
+            background: #da190b;
+        }
     </style>
 </head>
 <body>
@@ -174,6 +487,7 @@
             <p>Use Arrow Keys or WASD to move</p>
             <p>Tap SPACE to shoot</p>
             <p>Hold SPACE for 0.5s to activate shield</p>
+            <p>Press I to open inventory</p>
             <p>Press SPACE after game over to restart</p>
             <div class="speed-control">
                 <label for="speedSlider">Speed:</label>
@@ -183,6 +497,61 @@
             <button id="startBtn">Start Game</button>
         </div>
     </div>
+    
+    <!-- Inventory Overlay -->
+    <div id="inventoryOverlay" class="inventory-overlay">
+        <div class="inventory-container">
+            <div class="inventory-header">
+                <h2>Snake Configuration</h2>
+                <p class="inventory-info">Drag and drop segments to rearrange. Drop in discard area to remove.</p>
+            </div>
+            
+            <div class="segment-info-display empty" id="segmentInfoDisplay">
+                <div class="segment-info-placeholder">Hover over a segment to see detailed information</div>
+            </div>
+            
+            <div class="snake-schema">
+                <h3 style="color: #ffeb3b; text-align: center; margin-bottom: 15px;">Current Configuration</h3>
+                <div id="snakeSegments" class="snake-segments">
+                    <!-- Segments will be rendered here -->
+                </div>
+            </div>
+            
+            <div class="discard-window" id="discardArea">
+                <div style="width: 100%;">
+                    <div class="discard-label">Discard Area</div>
+                    <div id="discardContent" class="discard-content">
+                        <p style="color: #666; text-align: center;">Drag segments here to remove them</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="segment-controls">
+                <button class="segment-btn add-segment" onclick="addSegment()">Add Segment</button>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <h4 style="color: #999; margin-bottom: 10px;">Select Segment Type to Add:</h4>
+                <div class="segment-types">
+                    <button class="segment-type-btn selected" onclick="selectSegmentType('B')" data-type="B">Body (Fat)</button>
+                    <button class="segment-type-btn" onclick="selectSegmentType('G')" data-type="G">Gun (Shoot)</button>
+                    <button class="segment-type-btn" onclick="selectSegmentType('S')" data-type="S">Shield (Protect)</button>
+                </div>
+            </div>
+            
+            <div class="inventory-info">
+                <p>Head (H) - Always first, cannot be moved or removed</p>
+                <p>Gun (G) - Space short press: Launch projectile forward</p>
+                <p>Shield (S) - Space long press: Invincibility for 1 second</p>
+                <p>Body (B) - No trigger: Makes you look fat</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <button class="return-btn" onclick="closeInventory()">Return to Game</button>
+            </div>
+        </div>
+    </div>
+    
     <script src="openworld.js"></script>
 </body>
 </html>
