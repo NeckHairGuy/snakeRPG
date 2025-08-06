@@ -722,7 +722,7 @@ function update() {
 
 // Draw grid pattern
 function drawGrid() {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
     ctx.lineWidth = 1;
     
     const startX = Math.floor(camera.x / CELL_SIZE) * CELL_SIZE;
@@ -747,8 +747,8 @@ function drawGrid() {
 
 // Render game
 function render() {
-    // Clear canvas
-    ctx.fillStyle = '#0a0a0f';
+    // Clear canvas with Nokia green background
+    ctx.fillStyle = '#9fb859';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw grid
@@ -763,17 +763,10 @@ function render() {
         if (x > -CELL_SIZE && x < canvas.width + CELL_SIZE && 
             y > -CELL_SIZE && y < canvas.height + CELL_SIZE) {
             
-            const foodGradient = ctx.createRadialGradient(
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                0,
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                CELL_SIZE / 2
-            );
-            foodGradient.addColorStop(0, '#66bb6a');
-            foodGradient.addColorStop(1, '#2e7d32');
-            ctx.fillStyle = foodGradient;
+            // Simple black circle for food (Nokia style)
+            ctx.fillStyle = '#1a1a1a';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.arc(
                 x + CELL_SIZE / 2,
@@ -783,6 +776,7 @@ function render() {
                 Math.PI * 2
             );
             ctx.fill();
+            ctx.stroke();
         }
     });
 
@@ -795,22 +789,12 @@ function render() {
             if (x > -CELL_SIZE && x < canvas.width + CELL_SIZE && 
                 y > -CELL_SIZE && y < canvas.height + CELL_SIZE) {
                 
-                if (index === 0) {
-                    const gradient = ctx.createRadialGradient(
-                        x + CELL_SIZE / 2,
-                        y + CELL_SIZE / 2,
-                        0,
-                        x + CELL_SIZE / 2,
-                        y + CELL_SIZE / 2,
-                        CELL_SIZE / 2
-                    );
-                    gradient.addColorStop(0, '#ffffff');
-                    gradient.addColorStop(1, '#cccccc');
-                    ctx.fillStyle = gradient;
-                } else {
-                    ctx.fillStyle = '#e0e0e0';
-                }
+                // Enemy snake - outlined style for contrast
+                ctx.fillStyle = '#9fb859'; // Same as background
+                ctx.strokeStyle = '#1a1a1a';
+                ctx.lineWidth = 2;
                 ctx.fillRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                ctx.strokeRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
             }
         });
     });
@@ -821,62 +805,30 @@ function render() {
         const y = segment.y * CELL_SIZE - camera.y;
         const segmentType = snakeSegments[index] || SEGMENT_TYPES.BODY;
         
-        // Set color based on segment type
-        if (shieldActive && segmentType === SEGMENT_TYPES.SHIELD) {
-            // Active shield segment
-            const gradient = ctx.createRadialGradient(
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                0,
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                CELL_SIZE / 2
-            );
-            gradient.addColorStop(0, '#64b5f6');
-            gradient.addColorStop(1, '#1976d2');
-            ctx.fillStyle = gradient;
-        } else if (segmentType === SEGMENT_TYPES.HEAD) {
-            // Head segment
-            const gradient = ctx.createRadialGradient(
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                0,
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                CELL_SIZE / 2
-            );
-            gradient.addColorStop(0, '#ffeb3b');
-            gradient.addColorStop(1, '#f9a825');
-            ctx.fillStyle = gradient;
-        } else if (segmentType === SEGMENT_TYPES.GUN) {
-            // Gun segment
-            const gradient = ctx.createRadialGradient(
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                0,
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                CELL_SIZE / 2
-            );
-            gradient.addColorStop(0, '#ff6b6b');
-            gradient.addColorStop(1, '#ff5252');
-            ctx.fillStyle = gradient;
-        } else if (segmentType === SEGMENT_TYPES.SHIELD) {
-            // Shield segment (inactive)
-            const gradient = ctx.createRadialGradient(
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                0,
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                CELL_SIZE / 2
-            );
-            gradient.addColorStop(0, '#4dabf7');
-            gradient.addColorStop(1, '#2196f3');
-            ctx.fillStyle = gradient;
+        // Nokia-style monochrome colors
+        if (shieldActive) {
+            // Shield active - slightly darker
+            ctx.fillStyle = '#0a0a0a';
+            ctx.strokeStyle = '#000000';
         } else {
-            // Body segment
-            ctx.fillStyle = '#66bb6a';
+            // All segments are black with slight variations
+            switch(segmentType) {
+                case SEGMENT_TYPES.HEAD:
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.strokeStyle = '#000000';
+                    break;
+                case SEGMENT_TYPES.GUN:
+                    ctx.fillStyle = '#2a2a2a';
+                    ctx.strokeStyle = '#1a1a1a';
+                    break;
+                case SEGMENT_TYPES.SHIELD:
+                    ctx.fillStyle = '#3a3a3a';
+                    ctx.strokeStyle = '#2a2a2a';
+                    break;
+                default: // Body
+                    ctx.fillStyle = '#4a4a4a';
+                    ctx.strokeStyle = '#3a3a3a';
+            }
         }
         
         // Calculate size based on segment effect
@@ -890,20 +842,22 @@ function render() {
         }
         
         ctx.fillRect(x + offset, y + offset, segmentSize, segmentSize);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + offset, y + offset, segmentSize, segmentSize);
         
-        // Draw segment type character
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.font = 'bold 14px monospace';
+        // Draw segment type character in Nokia style
+        ctx.fillStyle = '#9fb859';
+        ctx.font = 'bold 12px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(segmentType, x + CELL_SIZE / 2, y + CELL_SIZE / 2);
 
-        // Draw gun on head if snake has gun segments
+        // Draw gun on head if snake has gun segments (Nokia style)
         if (segmentType === SEGMENT_TYPES.HEAD && getSegmentsByTrigger(TRIGGERS.SHORT_PRESS).length > 0) {
-            ctx.fillStyle = '#f38181';
+            ctx.fillStyle = '#000000';
             const gunX = x + CELL_SIZE / 2 + direction.x * CELL_SIZE / 3;
             const gunY = y + CELL_SIZE / 2 + direction.y * CELL_SIZE / 3;
-            ctx.fillRect(gunX - 3, gunY - 3, 6, 6);
+            ctx.fillRect(gunX - 2, gunY - 2, 4, 4);
         }
     });
 
@@ -927,8 +881,8 @@ function render() {
         const y = explosion.y * CELL_SIZE - camera.y;
         
         const alpha = 1 - (explosion.radius / explosion.maxRadius);
-        ctx.strokeStyle = `rgba(255, 100, 0, ${alpha})`;
-        ctx.fillStyle = `rgba(255, 200, 0, ${alpha * 0.3})`;
+        ctx.strokeStyle = `rgba(26, 26, 26, ${alpha})`;
+        ctx.fillStyle = `rgba(42, 42, 42, ${alpha * 0.3})`;
         ctx.lineWidth = 3;
         
         ctx.beginPath();
@@ -963,7 +917,7 @@ function render() {
         if (x > -CELL_SIZE && x < canvas.width + CELL_SIZE && 
             y > -CELL_SIZE && y < canvas.height + CELL_SIZE) {
             
-            ctx.strokeStyle = '#9c27b0';
+            ctx.strokeStyle = '#2a2a2a';
             ctx.lineWidth = 3;
             const size = 8;
             
@@ -985,35 +939,10 @@ function render() {
         if (x > -CELL_SIZE && x < canvas.width + CELL_SIZE && 
             y > -CELL_SIZE && y < canvas.height + CELL_SIZE) {
             
-            // Create gradient for segment type
-            const gradient = ctx.createRadialGradient(
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                0,
-                x + CELL_SIZE / 2,
-                y + CELL_SIZE / 2,
-                CELL_SIZE / 2
-            );
-            
-            switch(segment.type) {
-                case SEGMENT_TYPES.GUN:
-                    gradient.addColorStop(0, '#ff6b6b');
-                    gradient.addColorStop(1, '#d32f2f');
-                    break;
-                case SEGMENT_TYPES.SHIELD:
-                    gradient.addColorStop(0, '#4dabf7');
-                    gradient.addColorStop(1, '#1565c0');
-                    break;
-                case SEGMENT_TYPES.BODY:
-                    gradient.addColorStop(0, '#66bb6a');
-                    gradient.addColorStop(1, '#2e7d32');
-                    break;
-                default:
-                    gradient.addColorStop(0, '#ffffff');
-                    gradient.addColorStop(1, '#cccccc');
-            }
-            
-            ctx.fillStyle = gradient;
+            // Nokia-style collectable segments
+            ctx.fillStyle = '#2a2a2a';
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(
                 x + CELL_SIZE / 2,
@@ -1024,9 +953,12 @@ function render() {
             );
             ctx.fill();
             
+            // Add stroke to the circle
+            ctx.stroke();
+            
             // Draw segment type character
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = 'bold 12px monospace';
+            ctx.fillStyle = '#9fb859';
+            ctx.font = 'bold 10px monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(segment.type, x + CELL_SIZE / 2, y + CELL_SIZE / 2);
@@ -1039,7 +971,7 @@ function render() {
 
 // Draw minimap
 function drawMinimap() {
-    minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    minimapCtx.fillStyle = 'rgba(122, 148, 73, 0.8)';
     minimapCtx.fillRect(0, 0, 200, 200);
     
     const scale = 200 / (MINIMAP_RANGE * 2);
@@ -1047,7 +979,7 @@ function drawMinimap() {
     const centerY = 100;
     
     // Draw foods on minimap
-    minimapCtx.fillStyle = '#4caf50';
+    minimapCtx.fillStyle = '#1a1a1a';
     foods.forEach(food => {
         const dx = food.x - snake[0].x;
         const dy = food.y - snake[0].y;
@@ -1060,7 +992,7 @@ function drawMinimap() {
     });
     
     // Draw enemies on minimap
-    minimapCtx.fillStyle = '#ff5722';
+    minimapCtx.fillStyle = '#2a2a2a';
     enemySnakes.forEach(enemy => {
         const dx = enemy.segments[0].x - snake[0].x;
         const dy = enemy.segments[0].y - snake[0].y;
@@ -1073,11 +1005,11 @@ function drawMinimap() {
     });
     
     // Draw player in center
-    minimapCtx.fillStyle = '#ffeb3b';
+    minimapCtx.fillStyle = '#1a1a1a';
     minimapCtx.fillRect(centerX - 2, centerY - 2, 4, 4);
     
     // Draw direction indicator
-    minimapCtx.strokeStyle = '#ffeb3b';
+    minimapCtx.strokeStyle = '#1a1a1a';
     minimapCtx.lineWidth = 2;
     minimapCtx.beginPath();
     minimapCtx.moveTo(centerX, centerY);

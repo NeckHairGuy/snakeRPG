@@ -12,8 +12,8 @@
         }
         
         body {
-            background: #0a0a0f;
-            color: #fff;
+            background: #9fb859;
+            color: #1a1a1a;
             font-family: 'Courier New', monospace;
             overflow: hidden;
             display: flex;
@@ -52,15 +52,16 @@
         h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            color: #1a1a1a;
         }
         
         #gunText {
-            color: #ff6b6b;
+            color: #2a2a2a;
         }
         
         #shieldText {
-            color: #4dabf7;
+            color: #2a2a2a;
         }
         
         .shield-container {
@@ -85,8 +86,8 @@
             right: 20px;
             width: 200px;
             height: 200px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.2);
             border-radius: 10px;
         }
         
@@ -100,10 +101,10 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.2);
             padding: 15px;
             border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(0, 0, 0, 0.4);
             pointer-events: auto;
         }
         
@@ -127,18 +128,19 @@
         #startBtn {
             margin-top: 10px;
             padding: 8px 20px;
-            background: #ff6b6b;
-            border: none;
-            color: white;
+            background: #2a2a2a;
+            border: 1px solid #1a1a1a;
+            color: #9fb859;
             font-family: inherit;
             font-size: 1em;
             cursor: pointer;
             border-radius: 5px;
-            transition: background 0.3s;
+            transition: all 0.3s;
         }
         
         #startBtn:hover {
-            background: #ff5252;
+            background: #1a1a1a;
+            color: #b5c465;
         }
         
         .position-indicator {
@@ -159,7 +161,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.8);
             z-index: 100;
             justify-content: center;
             align-items: center;
@@ -170,8 +172,8 @@
         }
         
         .inventory-container {
-            background: #1a1a2e;
-            border: 2px solid #444;
+            background: #9fb859;
+            border: 2px solid #2a2a2a;
             border-radius: 15px;
             padding: 30px;
             max-width: 800px;
@@ -186,14 +188,14 @@
         }
         
         .inventory-header h2 {
-            color: #ffeb3b;
+            color: #1a1a1a;
             font-size: 2em;
             margin-bottom: 10px;
         }
         
         .snake-schema {
-            background: #0a0a0f;
-            border: 1px solid #333;
+            background: #8ca653;
+            border: 1px solid #2a2a2a;
             border-radius: 10px;
             padding: 20px;
             margin: 20px 0;
@@ -210,21 +212,22 @@
         .segment-slot {
             width: 60px;
             height: 60px;
-            border: 2px solid #444;
+            border: 2px solid #2a2a2a;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 24px;
             font-weight: bold;
-            background: #16213e;
+            background: #7a9449;
             position: relative;
             cursor: move;
             transition: all 0.3s;
+            color: #1a1a1a;
         }
         
         .segment-slot:hover:not(.locked) {
-            border-color: #ffeb3b;
+            border-color: #1a1a1a;
             transform: scale(1.05);
         }
         
@@ -239,42 +242,42 @@
         }
         
         .segment-slot.drag-over {
-            border-color: #4caf50;
+            border-color: #1a1a1a;
             border-width: 3px;
-            background: rgba(76, 175, 80, 0.1);
+            background: rgba(0, 0, 0, 0.1);
         }
         
         .segment-slot.head {
-            background: linear-gradient(135deg, #ffeb3b, #f9a825);
-            color: #000;
+            background: #2a2a2a;
+            color: #9fb859;
         }
         
         .segment-slot.gun {
-            background: linear-gradient(135deg, #ff6b6b, #ff5252);
-            color: #fff;
+            background: #3a3a3a;
+            color: #9fb859;
         }
         
         .segment-slot.shield {
-            background: linear-gradient(135deg, #4dabf7, #2196f3);
-            color: #fff;
+            background: #4a4a4a;
+            color: #9fb859;
         }
         
         .segment-slot.body {
-            background: linear-gradient(135deg, #66bb6a, #4caf50);
-            color: #fff;
+            background: #5a5a5a;
+            color: #9fb859;
         }
         
         .segment-slot.empty {
-            background: #0a0a0f;
+            background: #6a8342;
             border-style: dashed;
-            border-color: #333;
-            color: #666;
+            border-color: #2a2a2a;
+            color: #2a2a2a;
             cursor: default;
         }
         
         .discard-window {
-            background: rgba(244, 67, 54, 0.1);
-            border: 2px dashed #f44336;
+            background: rgba(0, 0, 0, 0.1);
+            border: 2px dashed #2a2a2a;
             border-radius: 10px;
             padding: 20px;
             margin: 20px 0;
@@ -285,8 +288,8 @@
         }
         
         .discard-window.drag-over {
-            background: rgba(244, 67, 54, 0.3);
-            border-color: #ff5252;
+            background: rgba(0, 0, 0, 0.2);
+            border-color: #1a1a1a;
         }
         
         .discard-content {
@@ -297,16 +300,16 @@
         }
         
         .discard-label {
-            color: #f44336;
+            color: #2a2a2a;
             font-size: 1.2em;
             margin-bottom: 10px;
             text-align: center;
         }
         
         .return-btn {
-            background: #4caf50;
-            color: white;
-            border: none;
+            background: #2a2a2a;
+            color: #9fb859;
+            border: 1px solid #1a1a1a;
             padding: 15px 40px;
             border-radius: 8px;
             font-size: 1.1em;
@@ -316,13 +319,13 @@
         }
         
         .return-btn:hover {
-            background: #45a049;
+            background: #1a1a1a;
             transform: scale(1.05);
         }
         
         .segment-info-display {
-            background: #2a2a3e;
-            border: 1px solid #444;
+            background: #8ca653;
+            border: 1px solid #2a2a2a;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
@@ -335,38 +338,38 @@
         }
         
         .segment-info-display.empty {
-            background: #1a1a2e;
+            background: #7a9449;
             border-style: dashed;
-            border-color: #333;
+            border-color: #2a2a2a;
         }
         
         .segment-info-title {
-            color: #ffeb3b;
+            color: #1a1a1a;
             font-size: 1.2em;
             font-weight: bold;
             margin-bottom: 8px;
         }
         
         .segment-info-trigger {
-            color: #4dabf7;
+            color: #2a2a2a;
             font-size: 0.9em;
             margin-bottom: 5px;
         }
         
         .segment-info-effect {
-            color: #66bb6a;
+            color: #2a2a2a;
             font-size: 0.9em;
             margin-bottom: 8px;
         }
         
         .segment-info-description {
-            color: #ccc;
+            color: #3a3a3a;
             font-size: 0.85em;
             line-height: 1.3;
         }
         
         .segment-info-placeholder {
-            color: #666;
+            color: #3a3a3a;
             font-style: italic;
             text-align: center;
             align-self: center;
@@ -397,21 +400,23 @@
         }
         
         .add-segment {
-            background: #4caf50;
-            color: white;
+            background: #2a2a2a;
+            color: #9fb859;
+            border: 1px solid #1a1a1a;
         }
         
         .add-segment:hover {
-            background: #45a049;
+            background: #1a1a1a;
         }
         
         .remove-segment {
-            background: #f44336;
-            color: white;
+            background: #3a3a3a;
+            color: #9fb859;
+            border: 1px solid #2a2a2a;
         }
         
         .remove-segment:hover {
-            background: #da190b;
+            background: #2a2a2a;
         }
         
         .segment-types {
@@ -424,21 +429,21 @@
         
         .segment-type-btn {
             padding: 8px 16px;
-            border: 2px solid #444;
-            background: #1a1a2e;
-            color: white;
+            border: 2px solid #2a2a2a;
+            background: #7a9449;
+            color: #1a1a1a;
             border-radius: 5px;
             cursor: pointer;
             transition: all 0.3s;
         }
         
         .segment-type-btn:hover {
-            border-color: #ffeb3b;
+            border-color: #1a1a1a;
         }
         
         .segment-type-btn.selected {
-            border-color: #ffeb3b;
-            background: #2a2a3e;
+            border-color: #1a1a1a;
+            background: #6a8342;
         }
         
         .inventory-info {
