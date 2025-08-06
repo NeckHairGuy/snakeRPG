@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake With Gun</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Snake With <span id="gunText">Gun</span> and <span class="shield-container"><span id="shieldTimer"></span><span id="shieldText">Shield</span></span></h1>
+        <div class="game-info">
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="high-score">High Score: <span id="highScore">0</span></div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="controls">
+            <p>Use Arrow Keys or WASD to move</p>
+            <p>Tap SPACE to shoot</p>
+            <p>Hold SPACE for 0.5s to activate shield</p>
+            <p>Press SPACE after game over to restart</p>
+            <div class="speed-control">
+                <label for="speedSlider">Game Speed:</label>
+                <input type="range" id="speedSlider" min="50" max="200" value="100" step="10">
+                <span id="speedValue">100ms</span>
+            </div>
+            <button id="startBtn">Start Game</button>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
