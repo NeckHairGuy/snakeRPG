@@ -135,6 +135,7 @@ const SEGMENT_EFFECTS = {
     },
     
     invincibility: () => {
+        // Only activate shield if not already active (prevents multiple shield segments from stacking)
         if (!gameRunning || shieldActive || Date.now() < shieldCooldownEnd) return;
         shieldActive = true;
         shieldEndTime = Date.now() + SHIELD_DURATION;
@@ -206,6 +207,107 @@ function clearSegmentInfo() {
     infoDisplay.innerHTML = '<div class="segment-info-placeholder">Hover over a segment to see detailed information</div>';
 }
 
+// Start trigger visualization
+function startTriggerVisualization(type) {
+    console.log(`Starting trigger visualization: ${type}`);
+    
+    // Reset visualization state
+    triggerVisualization.active = true;
+    triggerVisualization.type = type;
+    triggerVisualization.currentSegmentIndex = 0;
+    triggerVisualization.framesSinceLastSegment = 0;
+    triggerVisualization.firedCount = 0;
+    
+    // Precompute which segments should fire based on trigger type
+    triggerVisualization.segmentsToFire = [];
+    const targetTrigger = type === 'short' ? TRIGGERS.SHORT_PRESS : TRIGGERS.LONG_PRESS;
+    
+    for (let i = 0; i < snakeSegments.length; i++) {
+        const segmentType = snakeSegments[i];
+        const definition = SEGMENT_DEFINITIONS[segmentType];
+        if (definition.trigger === targetTrigger) {
+            triggerVisualization.segmentsToFire.push(i);
+        }
+    }
+    
+    console.log(`Found ${triggerVisualization.segmentsToFire.length} segments to fire:`, triggerVisualization.segmentsToFire);
+}
+
+// Get trigger visualization state for a specific segment
+function getTriggerVisualizationState(segmentIndex) {
+    if (!triggerVisualization.active) {
+        return { show: false, color: 'none' };
+    }
+    
+    // Show visual for current segment and a few segments ahead/behind for wave effect
+    const isCurrentSegment = segmentIndex === triggerVisualization.currentSegmentIndex;
+    const isNearbySegment = Math.abs(segmentIndex - triggerVisualization.currentSegmentIndex) <= 1;
+    
+    if (isCurrentSegment || isNearbySegment) {
+        const segmentType = snakeSegments[segmentIndex];
+        const definition = SEGMENT_DEFINITIONS[segmentType];
+        
+        // Check if this segment matches the trigger type
+        const isTriggered = (triggerVisualization.type === 'short' && definition.trigger === TRIGGERS.SHORT_PRESS) ||
+                           (triggerVisualization.type === 'long' && definition.trigger === TRIGGERS.LONG_PRESS);
+        
+        return {
+            show: true,
+            color: triggerVisualization.type === 'short' ? 'red' : 'blue',
+            fullHighlight: isTriggered && isCurrentSegment
+        };
+    }
+    
+    return { show: false, color: 'none' };
+}
+
+// Update trigger effects - handles sequential firing
+function updateTriggerEffects() {
+    if (!triggerVisualization.active || !gameRunning) return;
+    
+    // Advance the animation
+    triggerVisualization.currentSegmentIndex++;
+    triggerVisualization.framesSinceLastSegment = 0;
+    
+    // Check if we should fire the current segment
+    if (triggerVisualization.firedCount < triggerVisualization.segmentsToFire.length) {
+        const segmentIndexToFire = triggerVisualization.segmentsToFire[triggerVisualization.firedCount];
+        
+        // Fire if we've reached this segment in the sequence
+        if (triggerVisualization.currentSegmentIndex >= segmentIndexToFire) {
+            const segmentType = snakeSegments[segmentIndexToFire];
+            const definition = SEGMENT_DEFINITIONS[segmentType];
+            
+            if (definition.effect && SEGMENT_EFFECTS[definition.effect]) {
+                console.log(`Firing segment ${segmentIndexToFire} (${segmentType}) - projectile ${triggerVisualization.firedCount + 1}/${triggerVisualization.segmentsToFire.length}`);
+                SEGMENT_EFFECTS[definition.effect]();
+                triggerVisualization.firedCount++;
+            }
+        }
+    }
+    
+    // End animation when we've gone through all segments
+    if (triggerVisualization.currentSegmentIndex >= snakeSegments.length) {
+        // Make sure all remaining segments fire before ending
+        while (triggerVisualization.firedCount < triggerVisualization.segmentsToFire.length) {
+            const segmentIndexToFire = triggerVisualization.segmentsToFire[triggerVisualization.firedCount];
+            const segmentType = snakeSegments[segmentIndexToFire];
+            const definition = SEGMENT_DEFINITIONS[segmentType];
+            
+            if (definition.effect && SEGMENT_EFFECTS[definition.effect]) {
+                console.log(`Final firing segment ${segmentIndexToFire} (${segmentType}) - projectile ${triggerVisualization.firedCount + 1}/${triggerVisualization.segmentsToFire.length}`);
+                SEGMENT_EFFECTS[definition.effect]();
+                triggerVisualization.firedCount++;
+            } else {
+                break; // Prevent infinite loop
+            }
+        }
+        
+        console.log(`Animation complete. Fired ${triggerVisualization.firedCount}/${triggerVisualization.segmentsToFire.length} segments`);
+        triggerVisualization.active = false;
+    }
+}
+
 // Game state
 let snake = [];
 let snakeSegments = []; // Array to store segment types
@@ -233,6 +335,18 @@ let spaceKeyDown = false;
 let spaceKeyHoldStart = 0;
 let gunFlashEnd = 0;
 let shieldActivationTimer = null;
+
+// Trigger visualization state
+let triggerVisualization = {
+    active: false,
+    type: 'none', // 'short' or 'long'
+    startFrame: 0,
+    currentSegmentIndex: 0,
+    segmentFrameDelay: 3, // Wait 3 frames between each segment
+    framesSinceLastSegment: 0,
+    segmentsToFire: [], // Precomputed list of segments that should fire
+    firedCount: 0
+};
 
 // Drag and drop state
 let draggedElement = null;
@@ -279,6 +393,11 @@ function init() {
     gunFlashEnd = 0;
     gamePaused = false;
     inventoryOpen = false;
+    triggerVisualization.active = false;
+    triggerVisualization.currentSegmentIndex = 0;
+    triggerVisualization.framesSinceLastSegment = 0;
+    triggerVisualization.segmentsToFire = [];
+    triggerVisualization.firedCount = 0;
     if (shieldActivationTimer) {
         clearTimeout(shieldActivationTimer);
         shieldActivationTimer = null;
@@ -508,15 +627,19 @@ function getSegmentsByTrigger(trigger) {
     );
 }
 
-// Execute effects for segments with specific trigger
+// Execute effects for segments with specific trigger (sequential)
 function triggerSegmentEffects(trigger) {
-    const triggeredSegments = getSegmentsByTrigger(trigger);
-    triggeredSegments.forEach(segmentType => {
-        const definition = SEGMENT_DEFINITIONS[segmentType];
-        if (definition.effect && SEGMENT_EFFECTS[definition.effect]) {
-            SEGMENT_EFFECTS[definition.effect]();
-        }
-    });
+    const gunSegments = getSegmentsByTrigger(TRIGGERS.SHORT_PRESS);
+    console.log(`triggerSegmentEffects called with trigger: ${trigger}`);
+    console.log(`Snake has ${gunSegments.length} gun segments:`, gunSegments);
+    console.log(`Current snake segments:`, snakeSegments);
+    
+    // Start the visual sequence
+    const triggerType = trigger === TRIGGERS.SHORT_PRESS ? 'short' : 'long';
+    startTriggerVisualization(triggerType);
+    
+    // Don't execute effects immediately - they'll be handled by the update loop
+    // based on the visual timing
 }
 
 // Count segments with fat effect for rendering
@@ -718,6 +841,9 @@ function update() {
     
     // Update ability visuals
     updateAbilityVisuals();
+    
+    // Update trigger effects (sequential firing)
+    updateTriggerEffects();
 }
 
 // Draw grid pattern
@@ -845,8 +971,28 @@ function render() {
         ctx.lineWidth = 1;
         ctx.strokeRect(x + offset, y + offset, segmentSize, segmentSize);
         
+        // Draw trigger visualization overlay
+        const visualState = getTriggerVisualizationState(index);
+        if (visualState.show) {
+            if (visualState.fullHighlight) {
+                // Full segment highlight for triggered segments
+                ctx.fillStyle = visualState.color === 'red' ? 'rgba(255, 50, 50, 0.8)' : 'rgba(50, 100, 255, 0.8)';
+                ctx.fillRect(x + offset, y + offset, segmentSize, segmentSize);
+            } else {
+                // Just outline for non-triggered segments
+                ctx.strokeStyle = visualState.color === 'red' ? '#ff3232' : '#3264ff';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x + offset, y + offset, segmentSize, segmentSize);
+            }
+        }
+        
         // Draw segment type character in Nokia style
-        ctx.fillStyle = '#9fb859';
+        if (visualState.show && visualState.fullHighlight) {
+            // Use contrasting color for text when segment is highlighted
+            ctx.fillStyle = visualState.color === 'red' ? '#ffffff' : '#ffffff';
+        } else {
+            ctx.fillStyle = '#9fb859';
+        }
         ctx.font = 'bold 12px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
